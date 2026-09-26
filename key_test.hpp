@@ -2,13 +2,12 @@
 #define _KEY_TEST_HPP_
 
 #include <vector>
+#include <string>
 #include <cstdint>
 
 #include <cuda.h>
-#include <cuda_runtime_api.h>
 
 #include "error_check.hpp"
-#define CUDA_CALL(func, args...) error_wrapper<cudaError_t>(#func, (func)(args), cudaSuccess, cudaGetErrorString)
 #define CU_CALL(func, args...) error_wrapper<CUresult>(#func, (func)(args), CUDA_SUCCESS, cuGetErrorName_wrapper)
 
 using u32 = std::uint32_t;
@@ -16,7 +15,7 @@ using u8 = std::uint8_t;
 
 class CudaManager {
 private:
-    u32 *h[5] = {};
+    CUdeviceptr h[5] = {};
     u32 key_time0 = 0;
 
     int n_block_;
@@ -32,6 +31,13 @@ private:
     CUmodule cu_module = nullptr;
     CUfunction cu_kernel = nullptr;
     CUdeviceptr cu_result = 0;
+
+    CUmodule cu_module_sha1 = nullptr;
+    CUfunction cu_proc_chunk0 = nullptr;
+    CUfunction cu_proc_chunk = nullptr;
+    CUdeviceptr d_chunk_buffer = 0;
+
+    void init_sha1_kernel();
 
 public:
     CudaManager(int n_block, int thread_per_block, unsigned long base_time);

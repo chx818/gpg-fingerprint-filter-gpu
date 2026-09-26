@@ -6,10 +6,16 @@
 #include <cstring>
 #include <cstdint>
 
-extern "C" {
 #include <sys/stat.h>
+#ifdef _WIN32
+#include <direct.h>
+#define MKDIR(path) _mkdir(path)
+#else
+extern "C" {
 #include <sys/sysinfo.h>
 }
+#define MKDIR(path) mkdir(path, 0700)
+#endif
 
 #include "key_test.hpp"
 #include "gpg_helper.hpp"
@@ -35,7 +41,9 @@ struct Config {
 int _main(const Config &conf) {
     signal(SIGINT, signal_handler); 
     signal(SIGTERM, signal_handler); 
+#ifndef _WIN32
     umask(0077);
+#endif
 
     const int thread_per_block = conf.thread_per_block;
     const int time_offset = conf.time_offset;
@@ -139,7 +147,7 @@ int main(int argc, char* argv[]) {
     arg_map_default["base-time"] = std::to_string(time(NULL));
     arg_map_default["time-offset"] = "15552000";
     arg_map_default["thread-per-block"] = "512";
-    arg_map_default["gpg-thread"] = std::to_string(std::max(get_nprocs(), 1));
+    arg_map_default["gpg-thread"] = std::to_string(std::max(std::thread::hardware_concurrency(), 1u));
     arg_map_default["batch-mode"] = "N";
 
     auto arg_map = arg_map_default;
@@ -201,7 +209,7 @@ int main(int argc, char* argv[]) {
     }
 
     try {
-        mkdir(config.output.c_str(), 0700);
+        MKDIR(config.output.c_str());
         return _main(config);
     } catch (const std::runtime_error &e) {
         // avoid annoying SIGABRT

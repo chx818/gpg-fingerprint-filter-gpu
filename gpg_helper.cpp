@@ -269,11 +269,13 @@ GPGWorker::GPGWorker(size_t n_thread, const std::string &algo):
 
     for (size_t i = 0; i < n_thread; i++) {
         threads.emplace_back([this]() {
+#ifndef _WIN32
             sigset_t signal_mask;
             sigemptyset(&signal_mask);
             sigaddset(&signal_mask, SIGINT);
             sigaddset(&signal_mask, SIGTERM);
             DIE_ON_ERR(pthread_sigmask(SIG_BLOCK, &signal_mask, NULL) == 0);
+#endif
             worker();
         });
     }

@@ -192,7 +192,7 @@ void CudaManager::load_patterns(const std::string &input) {
 };
 
 void CudaManager::gpu_pattern_check() {
-    void *args[] = {&cu_result, h + 0, h + 1, h + 2, h + 3, h + 4};
+    void *args[] = {&cu_result, (void*)&h[0], (void*)&h[1], (void*)&h[2], (void*)&h[3], (void*)&h[4]};
     CU_CALL(cuLaunchKernel,
             cu_kernel,
             n_block_, 1, 1,

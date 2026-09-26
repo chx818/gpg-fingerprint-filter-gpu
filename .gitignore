@@ -1,7 +1,11 @@
 gpg-fingerprint-filter-gpu
+*.exe
 *.o
 *.out
 *.gpg
 *.pgp
 *.asc
 *.ptx
+dist/
+_miner_scratch/
+_win_test_output/
