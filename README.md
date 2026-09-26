@@ -144,16 +144,16 @@ For continuous vanity key hunting, automated scripts are provided for both platf
 > [!TIP]
 > **Recommendation**: If you have **WSL 2** installed on Windows, running the Linux version in WSL (`./batch_miner.sh`) is **strongly recommended** for high-degree curves like `p512`.
 
-**Why does hash rate vary across curves? (1.7G vs 4G+ on RTX 4070 Laptop)**
+**Why does hash rate vary across curves? (Example: RTX 4070 Laptop)**
 - **Public Key Size & SHA-1 Chunks**:
-  - **`ed25519` / `cv25519`**: Public keys are only 32 bytes (OpenPGP packet $\approx 50$ bytes), fitting inside a **single 64-byte SHA-1 chunk (80 rounds)**. An **RTX 4070 Laptop** easily achieves **4.0G+ hashes/sec**.
-  - **`p512` (Brainpool-512)**: The 512-bit uncompressed public point is 129 bytes (OpenPGP packet $\approx 150+$ bytes), spanning **3 SHA-1 chunks (240 rounds per candidate, 3× compute load)**. Thus, the physical hardware throughput limit on an **RTX 4070 Laptop** is **~1.7G hashes/sec**.
+  - **`ed25519` / `cv25519`**: Public keys are only 32 bytes (OpenPGP packet $\approx 50$ bytes), fitting inside a **single 64-byte SHA-1 chunk (80 rounds)**. Taking an RTX 4070 Laptop as an example, it easily achieves **4.0G+ hashes/sec**.
+  - **`p512` (Brainpool-512)**: The 512-bit uncompressed public point is 129 bytes (OpenPGP packet $\approx 150+$ bytes), spanning **3 SHA-1 chunks (240 rounds per candidate, 3× compute load)**. Consequently, the hardware throughput limit on an RTX 4070 Laptop is **~1.7G hashes/sec**.
 - **CPU Key Generation Bottleneck on Windows**:
   - Linux's `libgcrypt` includes handwritten x86_64 AVX2 / ADX assembly (`mpih-mul.S`), generating 512-bit Brainpool keys in ~16 ms per key. Windows's portable Libgcrypt DLL lacks AVX2 assembly, requiring ~60–90 ms per key (~4–5× slower).
 - **Impact on Windows Performance for `p512`**:
-  - In **WSL / Linux**, the fast CPU keygen keeps the GPU continuously fed, maintaining the hardware limit of **1.5G – 1.7G hashes/sec** even with a 1-year window.
-  - In **Native Windows**, smaller time windows ($\le 3$ years) cause slight GPU idle gaps (GPU utilization hovering around 70%), keeping throughput around ~1.0G – 1.2G hashes/sec.
-  - To reach the full **1.5G – 1.7G limit** on native Windows for `p512`, set `$TIME_WINDOW = 157680000` (5 years) in `batch_miner.ps1` to ensure continuous 100% GPU saturation on your **RTX 4070 Laptop**.
+  - In **WSL / Linux**, the fast CPU keygen keeps the GPU continuously fed, maintaining maximum hardware throughput (~1.5G – 1.7G on an RTX 4070 Laptop) even with a 1-year window.
+  - In **Native Windows**, smaller time windows ($\le 3$ years) cause slight GPU idle gaps (GPU utilization hovering around ~70%), keeping throughput around ~1.0G – 1.2G hashes/sec.
+  - To reach full GPU saturation on native Windows for `p512`, set `$TIME_WINDOW = 157680000` (5 years) in `batch_miner.ps1` to ensure continuous 100% GPU utilization.
 
 ---
 
@@ -400,17 +400,17 @@ $ ./gpg-fingerprint-filter-gpu --help
 > [!TIP]
 > **使用建议**：如果你的 Windows 电脑安装了 **WSL 2**，碰撞 `p512`（Brainpool-512）等高阶大曲线时，**强烈推荐直接在 WSL 2 中运行 Linux 版脚本（`./batch_miner.sh`）**，能发挥最高算力！
 
-**为什么不同曲线速度差别很大？（基于 RTX 4070 Laptop 的 1.7G 与 4G+ 实测物理上限）**：
+**为什么不同曲线速度差别很大？（以 RTX 4070 Laptop 为例）**：
 - **公钥尺寸与 SHA-1 Chunk 数量**：
-  - **`ed25519` / `cv25519`**：公钥只有 32 字节（OpenPGP 数据包总长仅约 50 字节），只需 **1 个 64 字节 SHA-1 Chunk（单次候选仅算 80 轮哈希）**。在 **RTX 4070 Laptop** 上可轻松突破 **4.0G+ hashes/sec**！
-  - **`p512` (Brainpool-512)**：512 位非压缩公钥点长达 129 字节（OpenPGP 数据包总长达 150+ 字节），需要跨越 **3 个 SHA-1 Chunk（单次候选需跑整整 240 轮哈希，计算量是 25519 的 3 倍）**。因此在 **RTX 4070 Laptop** 上的**物理硬件满血极限就是 ~1.7G hashes/sec**。
+  - **`ed25519` / `cv25519`**：公钥只有 32 字节（OpenPGP 数据包总长仅约 50 字节），只需 **1 个 64 字节 SHA-1 Chunk（单次候选仅需 80 轮哈希）**。以 RTX 4070 Laptop 为例，可轻松跑出 **4.0G+ hashes/sec** 的超高算力！
+  - **`p512` (Brainpool-512)**：512 位非压缩公钥点长达 129 字节（OpenPGP 数据包总长达 150+ 字节），需要跨越 **3 个 SHA-1 Chunk（单次候选需跑整整 240 轮哈希，计算量是 25519 的 3 倍）**。因此在同一张 RTX 4070 Laptop 上，该算法满血运行的物理硬件极限约为 **~1.7G hashes/sec**。
 - **Windows 与 Linux 的 CPU 供弹速度瓶颈**：
   - **Linux / WSL**：系统自带的 `libgcrypt` 拥有针对现代 CPU 的手写 **AVX2 / ADX / BMI2 汇编大数加速**（`mpih-mul.S`），单次 512 位密钥生成仅需约 **16 毫秒**；
   - **Windows 原生**：由于官方 DLL 为了向后兼容旧系统，未启用 AVX2 高级汇编，单次 512 位密钥生成需要 **60~90 毫秒（慢了 4~5 倍）**。
-- **在 Windows 原生下跑满 1.7G 极限的技巧**：
-  - 在 WSL 中，由于 CPU 供弹极快，哪怕 1 年时间窗口也能稳稳跑在 **1.5G ~ 1.7G**；
+- **在 Windows 原生下跑满显卡极限的技巧**：
+  - 在 WSL 中，由于 CPU 供弹极快，哪怕 1 年时间窗口也能稳稳跑满显卡极限（如 4070 Laptop 的 1.5G~1.7G）；
   - 在 Windows 原生下，由于 CPU 生成 512 位密钥较慢，若设置 1~3 年时间窗口，GPU 仍可能存在间隙等待（显卡占用约 70%，速度在 1.0G 左右浮动）；
-  - 若想在 Windows 原生下彻底榨干 **RTX 4070 Laptop** 跑满 **1.5G ~ 1.7G 极限**，建议将 `batch_miner.ps1` 中的 `$TIME_WINDOW` 进一步调大至 **5 年（`157680000`）**。
+  - 若想在 Windows 原生下彻底榨干显卡跑满硬件极限，建议将 `batch_miner.ps1` 中的 `$TIME_WINDOW` 进一步调大至 **5 年（`157680000`）**。
 
 ---
 
