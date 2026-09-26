@@ -83,6 +83,7 @@ int _main(const Config &conf) {
         std::chrono::duration<double> elapsed = t1 - t0;
         count += num_block * thread_per_block;
         printf("\rSpeed: %.4lf hashes / sec", count / elapsed.count());
+        fflush(stdout);
     }
 
     key_worker.shutdown();

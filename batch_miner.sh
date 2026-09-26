@@ -27,7 +27,7 @@ cleanup() {
     SECS=$((TOTAL_ELAPSED % 60))
     echo ">> 累计挂机时长: ${HOURS}小时${MINUTES}分 ${SECS}秒"
     echo ">> 成功收获靓号: ${TOTAL_HITS} 个"
-    echo ">> 所有密钥保存在: $(realpath "$OUTPUT_DIR")"
+    echo ">> 所有密钥保存在: $(realpath "$OUTPUT_DIR" 2>/dev/null || echo "$OUTPUT_DIR")"
     echo "=================================================="
     rm -rf "$SCRATCH_DIR"
     exit 0
@@ -45,13 +45,18 @@ while true; do
     rm -rf "${SCRATCH_DIR:?}"/*
     RUN_START=$(date +%s)
 
-    # 捕获 miner 输出并实时显示速度
-    ./gpg-fingerprint-filter-gpu -a "$ALGO" -t "$TIME_WINDOW" "$PATTERN" "$SCRATCH_DIR" \
-        2>&1 | while read -r line; do
+    # 优先检测并使用 stdbuf 禁用输出缓冲，确保管道实时刷新
+    STDBUF_CMD=""
+    if command -v stdbuf >/dev/null 2>&1; then
+        STDBUF_CMD="stdbuf -o0 -e0"
+    fi
+
+    # 捕获 miner 输出并实时显示速度（以 \r 作为单行刷新分隔符）
+    $STDBUF_CMD ./gpg-fingerprint-filter-gpu -a "$ALGO" -t "$TIME_WINDOW" "$PATTERN" "$SCRATCH_DIR" 2>&1 | \
+        while IFS= read -r -d $'\r' line || [[ -n "$line" ]]; do
             # Speed: 1690546512.0233 hashes / sec
             if [[ "$line" =~ Speed:\ ([0-9\.]+)\ hashes ]]; then
-                CURRENT_HASH="${BASH_REMATCH[1]}"
-                echo -ne "\r>> 当前 GPU 哈希速度: ${CURRENT_HASH} hashes/sec"
+                echo -ne "\r\033[K>> 当前 GPU 哈希速度: ${BASH_REMATCH[1]} hashes/sec"
             fi
         done
 
