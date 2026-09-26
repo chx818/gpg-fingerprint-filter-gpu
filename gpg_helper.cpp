@@ -26,42 +26,94 @@ static std::vector<uint8_t> load_key_param(const sexp_ptr &key, char name) {
     return ret;
 }
 
+static std::string normalize_algo_name(const std::string &s) {
+    std::string res;
+    for (char c : s) {
+        if (c != '-' && c != '_') {
+            res.push_back(std::tolower(c));
+        }
+    }
+    return res;
+}
+
 GPGKey::GPGKey(const std::string &algorithm) {
     std::string s_expr;
     std::vector<uint8_t> curve_oid;
+    std::vector<uint8_t> kdf_params;
+    std::string algo = normalize_algo_name(algorithm);
 
-    if (algorithm == "rsa") {
+    if (algo == "rsa" || algo == "rsa2048") {
         s_expr = "(genkey(rsa(nbits 4:2048)))";
         pk_algo = PK_RSA;
-    } else if (algorithm == "rsa2048") {
-        s_expr = "(genkey(rsa(nbits 4:2048)))";
-        pk_algo = PK_RSA;
-    } else if (algorithm == "rsa3072") {
+    } else if (algo == "rsa3072") {
         s_expr = "(genkey(rsa(nbits 4:3072)))";
         pk_algo = PK_RSA;
-    } else if (algorithm == "rsa4096") {
+    } else if (algo == "rsa4096") {
         s_expr = "(genkey(rsa(nbits 4:4096)))";
         pk_algo = PK_RSA;
-    } else if (algorithm == "nistp256") {
+    } else if (algo == "nistp256") {
         s_expr = "(genkey(ecc(curve nistp256)(flags nocomp)))";
         curve_oid = { 8, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07 };
         pk_algo = PK_ECDSA;
-    } else if (algorithm == "nistp384") {
+    } else if (algo == "nistp384") {
         s_expr = "(genkey(ecc(curve nistp384)(flags nocomp)))";
         curve_oid = { 5, 0x2B, 0x81, 0x04, 0x00, 0x22 };
         pk_algo = PK_ECDSA;
-    } else if (algorithm == "nistp521") {
+    } else if (algo == "nistp521") {
         s_expr = "(genkey(ecc(curve nistp521)(flags nocomp)))";
         curve_oid = { 5, 0x2B, 0x81, 0x04, 0x00, 0x23 };
         pk_algo = PK_ECDSA;
-    } else if (algorithm == "ed25519") {
+    } else if (algo == "nistp256ecdh") {
+        s_expr = "(genkey(ecc(curve nistp256)(flags nocomp)))";
+        curve_oid = { 8, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07 };
+        pk_algo = PK_ECDH;
+        kdf_params = { 0x03, 0x01, 0x08, 0x07 };
+    } else if (algo == "nistp384ecdh") {
+        s_expr = "(genkey(ecc(curve nistp384)(flags nocomp)))";
+        curve_oid = { 5, 0x2B, 0x81, 0x04, 0x00, 0x22 };
+        pk_algo = PK_ECDH;
+        kdf_params = { 0x03, 0x01, 0x09, 0x09 };
+    } else if (algo == "nistp521ecdh") {
+        s_expr = "(genkey(ecc(curve nistp521)(flags nocomp)))";
+        curve_oid = { 5, 0x2B, 0x81, 0x04, 0x00, 0x23 };
+        pk_algo = PK_ECDH;
+        kdf_params = { 0x03, 0x01, 0x0A, 0x09 };
+    } else if (algo == "ed25519") {
         s_expr = "(genkey(ecc(curve Ed25519)(flags eddsa comp)))";
         curve_oid = { 9, 0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01 };
         pk_algo = PK_EDDSA;
-    } else if (algorithm == "cv25519") {
+    } else if (algo == "cv25519" || algo == "x25519") {
         s_expr = "(genkey(ecc(curve Curve25519)(flags djb-tweak comp)))";
         curve_oid = { 0x0a, 0x2b, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01 };
         pk_algo = PK_ECDH;
+        kdf_params = { 0x03, 0x01, 0x08, 0x07 };
+    } else if (algo == "brainpool256" || algo == "brainpoolp256" || algo == "brainpoolp256r1") {
+        s_expr = "(genkey(ecc(curve brainpoolP256r1)(flags nocomp)))";
+        curve_oid = { 9, 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07 };
+        pk_algo = PK_ECDSA;
+    } else if (algo == "brainpool384" || algo == "brainpoolp384" || algo == "brainpoolp384r1") {
+        s_expr = "(genkey(ecc(curve brainpoolP384r1)(flags nocomp)))";
+        curve_oid = { 9, 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0B };
+        pk_algo = PK_ECDSA;
+    } else if (algo == "brainpool512" || algo == "brainpoolp512" || algo == "brainpoolp512r1" || algo == "p512") {
+        s_expr = "(genkey(ecc(curve brainpoolP512r1)(flags nocomp)))";
+        curve_oid = { 9, 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0D };
+        pk_algo = PK_ECDSA;
+    } else if (algo == "brainpool256ecdh" || algo == "brainpoolp256ecdh" || algo == "brainpoolp256r1ecdh") {
+        s_expr = "(genkey(ecc(curve brainpoolP256r1)(flags nocomp)))";
+        curve_oid = { 9, 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07 };
+        pk_algo = PK_ECDH;
+        kdf_params = { 0x03, 0x01, 0x08, 0x07 };
+    } else if (algo == "brainpool384ecdh" || algo == "brainpoolp384ecdh" || algo == "brainpoolp384r1ecdh") {
+        s_expr = "(genkey(ecc(curve brainpoolP384r1)(flags nocomp)))";
+        curve_oid = { 9, 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0B };
+        pk_algo = PK_ECDH;
+        kdf_params = { 0x03, 0x01, 0x09, 0x09 };
+    } else if (algo == "brainpool512ecdh" || algo == "brainpoolp512ecdh" || algo == "brainpoolp512r1ecdh" || algo == "p512ecdh") {
+        s_expr = "(genkey(ecc(curve brainpoolP512r1)(flags nocomp)))";
+        curve_oid = { 9, 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0D };
+        pk_algo = PK_ECDH;
+        kdf_params = { 0x03, 0x01, 0x0A, 0x09 };
     } else {
         throw std::runtime_error("unsupported algorithm: " + algorithm);
     }
@@ -93,9 +145,14 @@ GPGKey::GPGKey(const std::string &algorithm) {
     for (auto k: public_param_names)
         public_params.emplace_back(load_key_param(public_key, k));
 
-    // secret sauce
-    if (pk_algo == PK_ECDH)
-        public_params.push_back({0x03, 0x01, 0x08, 0x07});
+    // KDF parameters for ECDH
+    if (pk_algo == PK_ECDH) {
+        if (!kdf_params.empty()) {
+            public_params.push_back(kdf_params);
+        } else {
+            public_params.push_back({0x03, 0x01, 0x08, 0x07});
+        }
+    }
 
     for (auto k: private_param_names)
         private_params.emplace_back(load_key_param(private_key, k));

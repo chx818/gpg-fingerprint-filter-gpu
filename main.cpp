@@ -96,7 +96,11 @@ void print_help(std::map<std::string, std::string> arg_map) {
     printf("  <output>                    "
            "Save the secret key(s) to this folder\n");
     printf("  -a, --algorithm <ALGO>      "
-           "PGP key algorithm [default: %s]\n",
+           "PGP key algorithm [default: %s]\n"
+           "                              Supported: rsa, rsa2048, rsa3072, rsa4096,\n"
+           "                                         nistp256, nistp384, nistp521,\n"
+           "                                         ed25519, cv25519,\n"
+           "                                         brainpool256, brainpool384, brainpool512 (p512)\n",
            arg_map["algorithm"].c_str());
     printf("  -b, --base-time <N>         "
            "Base key timestamp in UNIX epoch [default: %s]\n",
