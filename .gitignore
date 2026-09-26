@@ -6,6 +6,8 @@ gpg-fingerprint-filter-gpu
 *.pgp
 *.asc
 *.ptx
+*.zip
+*.tar.gz
 dist/
 _miner_scratch/
 _win_test_output/

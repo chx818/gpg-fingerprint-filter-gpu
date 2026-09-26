@@ -27,17 +27,17 @@ A high-performance CUDA-accelerated GPU tool to generate OpenPGP keys with custo
   - Real-time unbuffered GPU hash rate monitoring (`hashes/sec`).
   - Automatically extracts key fingerprints via GPG, renames files, and archives keys cleanly without stopping.
   - Logs match statistics (timestamps, elapsed time, fingerprints) with graceful `Ctrl+C` shutdown summary.
-- **Pre-Built Portable Packages (`dist/`)**:
-  - Standalone releases for Linux (static ELF binary) and Windows (complete portable directory with all required DLLs bundled).
+- **Pre-Built Portable Packages (GitHub Releases)**:
+  - Ready-to-run releases for Linux (static ELF binary) and Windows (complete portable package with all required DLLs bundled).
 
 ---
 
 ### 📦 Pre-Built Releases & Quick Start
 
-If you do not wish to compile from source, you can use the pre-built portable packages in the `dist/` directory:
+If you do not wish to compile from source, download the pre-built packages from [GitHub Releases](https://github.com/chx818/gpg-fingerprint-filter-gpu/releases):
 
 #### Windows
-- Located in `dist/windows/`:
+- Download **`gpg-fingerprint-filter-gpu-v1.0.0-windows-x64.zip`** and extract it:
   - `gpg-fingerprint-filter-gpu.exe`: 64-bit native Windows executable.
   - Bundled DLLs: `libgcrypt-20.dll`, `libgpg-error-0.dll`, `nvrtc64_130_0.dll`, `nvrtc-builtins64_130.dll`.
   - `batch_miner.bat` / `batch_miner.ps1`: Automated miner scripts.
@@ -49,11 +49,12 @@ If you do not wish to compile from source, you can use the pre-built portable pa
      ```
 
 #### Linux
-- Located in `dist/linux/`:
+- Download **`gpg-fingerprint-filter-gpu-v1.0.0-linux-x64.tar.gz`** and extract it:
   - `gpg-fingerprint-filter-gpu`: 64-bit statically-linked Linux binary (no system `libgcrypt` installation needed, only NVIDIA driver).
   - `batch_miner.sh`: Automated bash miner script.
 - **Usage**:
   ```bash
+  tar -xzf gpg-fingerprint-filter-gpu-v1.0.0-linux-x64.tar.gz
   chmod +x gpg-fingerprint-filter-gpu batch_miner.sh
   ./batch_miner.sh
   ```
@@ -266,17 +267,17 @@ gpg> addkey
   - 实时无缓冲刷新当前 GPU 哈希算力速度（`hashes/sec`）。
   - 命中靓号后自动通过 `gpg` 提取公钥指纹、格式化重命名并归档存储，无需手动干预。
   - 自动记录运行日志（时间戳、耗时、完整指纹）；按 `Ctrl+C` 退出时自动输出挂机总时长与战果统计。
-- **开箱即用便携包 (`dist/`)**：
+- **开箱即用便携发布包 (GitHub Releases)**：
   - 提供预编译的 Linux 静态可执行程序和 Windows 绿色便携包（内置所需全部 DLL 动态库）。
 
 ---
 
 ### 📦 开箱即用便携发布包
 
-如果你不想自行配置编译环境，可以直接使用本项目预编译好的 `dist/` 便携包：
+如果你不想自行配置编译环境，可以直接前往 [GitHub Releases](https://github.com/chx818/gpg-fingerprint-filter-gpu/releases) 下载最新预编译便携包：
 
 #### Windows 用户
-- 位于 `dist/windows/` 目录：
+- 下载 **`gpg-fingerprint-filter-gpu-v1.0.0-windows-x64.zip`** 并解压：
   - `gpg-fingerprint-filter-gpu.exe`：64 位 Windows 原生可执行文件。
   - 附带必要动态链接库：`libgcrypt-20.dll`、`libgpg-error-0.dll`、`nvrtc64_130_0.dll`、`nvrtc-builtins64_130.dll`。
   - `batch_miner.bat` / `batch_miner.ps1`：一键自动挂机挖号脚本。
@@ -288,11 +289,12 @@ gpg> addkey
      ```
 
 #### Linux 用户
-- 位于 `dist/linux/` 目录：
+- 下载 **`gpg-fingerprint-filter-gpu-v1.0.0-linux-x64.tar.gz`** 并解压：
   - `gpg-fingerprint-filter-gpu`：64 位 Linux 静态链接二进制文件（无需额外安装 libgcrypt，仅需显卡驱动）。
   - `batch_miner.sh`：自动化挂机脚本。
 - **使用方式**：
   ```bash
+  tar -xzf gpg-fingerprint-filter-gpu-v1.0.0-linux-x64.tar.gz
   chmod +x gpg-fingerprint-filter-gpu batch_miner.sh
   ./batch_miner.sh
   ```
