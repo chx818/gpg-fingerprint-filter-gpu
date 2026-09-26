@@ -35,10 +35,11 @@ $ ./gpg-fingerprint-filter-gpu --help
   <pattern>                   Key pattern to match, for example 'X{8}|(AB){4}'
   <output>                    Save secret key to this path
   -a, --algorithm <ALGO>      PGP key algorithm [default: rsa]
-                              Supported: rsa (rsa2048, rsa3072, rsa4096),
+                              Supported: rsa, rsa2048, rsa3072, rsa4096,
                                          nistp256, nistp384, nistp521,
-                                         ed25519, cv25519,
+                                         ed25519, cv25519 (x25519),
                                          brainpool256, brainpool384, brainpool512 (p512)
+                              (For ECDH subkeys, append 'ecdh', e.g. p512ecdh)
   -t, --time-offset <N>       Max key timestamp offset [default: 15552000]
   -w, --thread-per-block <N>  CUDA thread number per block [default: 512]
   -j, --gpg-thread <N>        Number of threads to generate keys [default: 12]
@@ -49,8 +50,11 @@ $ ./gpg-fingerprint-filter-gpu --help
 #### Examples
 
 ```bash
-# Mine a Brainpool P-512 key with 8 identical characters suffix
+# Mine a Brainpool P-512 primary key with 8 identical characters suffix
 ./gpg-fingerprint-filter-gpu -a p512 "x{8}" ./output
+
+# Mine an ECDH encryption subkey for Brainpool P-512 (for vanity subkey stitching)
+./gpg-fingerprint-filter-gpu -a p512ecdh "88888888" ./output
 
 # Mine an Ed25519 key ending with 'deadbeef'
 ./gpg-fingerprint-filter-gpu -a ed25519 "deadbeef" ./output
@@ -125,22 +129,33 @@ gpg> save
 
 ---
 
-### 🔗 Merging as a Subkey
+### 🔗 Merging as a Subkey (Stitching Vanity Subkeys)
 
-Since encryption-only algorithms (such as `cv25519` / `x25519` or `*ecdh`) cannot be used as a primary key, or if you prefer to use your lucky key as a subkey under an existing master key:
+Since encryption-only algorithms (such as `p512ecdh`, `brainpool*ecdh`, or `cv25519` / `x25519`) cannot be used as primary keys, or if you want to stitch your mined vanity key as a subkey under an existing master key:
 
 > Reference: [StackExchange: Migrating GPG master keys as subkeys](https://security.stackexchange.com/questions/32935/migrating-gpg-master-keys-as-subkeys-to-new-master-key)
 
-**TL;DR**:
-1. The primary key must have a creation timestamp earlier than the subkey.
-2. To preserve the subkey's vanity fingerprint, you must preserve its creation timestamp:
+**Key Requirements**:
+1. **Timestamp order**: The master key creation time must be **earlier** than the subkey.
+2. **Preserve creation timestamp**: OpenPGP fingerprints depend on the creation timestamp. You **must** lock the timestamp when binding the subkey, otherwise the vanity fingerprint will change!
+
+**Step-by-Step Guide**:
 
 ```bash
-gpg -k --with-colons
-gpg --with-keygrip -k
-gpg --expert --faked-system-time="[sub key timestamp]\!" --ignore-time-conflict --edit-key [master key id]
-addkey
-13 (existing key)
+# 1. Extract the exact creation timestamp of your mined subkey
+SUB_TIME=$(gpg --with-colons --show-keys ./output/<SUBKEY_FILE>.gpg | awk -F: '$1=="sec"{print $6}')
+
+# 2. Find the keygrip of the subkey
+gpg --with-keygrip --show-keys ./output/<SUBKEY_FILE>.gpg
+
+# 3. Edit master key with --faked-system-time locked to the subkey timestamp
+gpg --expert --faked-system-time="${SUB_TIME}!" --ignore-time-conflict --edit-key <MASTER_KEY_ID>
+
+gpg> addkey
+# Select: (13) Existing key
+# Enter the subkey's Keygrip
+# Choose key capabilities (e.g., Encrypt)
+# Type 'save' to commit
 ```
 
 ---
@@ -179,8 +194,9 @@ $ ./gpg-fingerprint-filter-gpu --help
   -a, --algorithm <ALGO>      PGP 密钥算法 [默认: rsa]
                               支持算法: rsa (rsa2048, rsa3072, rsa4096),
                                         nistp256, nistp384, nistp521,
-                                        ed25519, cv25519,
+                                        ed25519, cv25519 (x25519),
                                         brainpool256, brainpool384, brainpool512 (p512)
+                              （如需碰撞 ECDH 加密子密钥，算法名追加 'ecdh'，如 p512ecdh）
   -t, --time-offset <N>       最大时间戳偏移范围 [默认: 15552000]
   -w, --thread-per-block <N>  每个 Block 的 CUDA 线程数 [默认: 512]
   -j, --gpg-thread <N>        生成密钥的 CPU 线程数 [默认: 12]
@@ -191,8 +207,11 @@ $ ./gpg-fingerprint-filter-gpu --help
 #### 使用示例
 
 ```bash
-# 生成尾部 8 连相同字符的 Brainpool P-512 靓号密钥
+# 生成尾部 8 连相同字符的 Brainpool P-512 主密钥
 ./gpg-fingerprint-filter-gpu -a p512 "x{8}" ./output
+
+# 碰撞 Brainpool P-512 的 ECDH 加密子密钥（用于缝合靓号子密钥）
+./gpg-fingerprint-filter-gpu -a p512ecdh "88888888" ./output
 
 # 生成以 deadbeef 结尾的 Ed25519 密钥
 ./gpg-fingerprint-filter-gpu -a ed25519 "deadbeef" ./output
@@ -267,20 +286,31 @@ gpg> save
 
 ---
 
-### 🔗 合并为已有主密钥的子密钥（Subkey）
+### 🔗 合并为已有主密钥的子密钥（缝合靓号子密钥）
 
-如果生成的密钥为仅加密算法（如 `cv25519` / `x25519` 或 `*ecdh`），无法直接作为主密钥；或者你希望将碰撞出的靓号密钥作为已有主密钥的子密钥（Subkey）使用：
+如果生成的密钥为纯加密算法（如 `p512ecdh`、`brainpool*ecdh` 或 `cv25519` / `x25519`），无法直接作为主密钥；或者你希望将碰撞出的靓号密钥缝合为已有主密钥的子密钥（Subkey）：
 
 > 参考文档：[StackExchange: Migrating GPG master keys as subkeys](https://security.stackexchange.com/questions/32935/migrating-gpg-master-keys-as-subkeys-to-new-master-key)
 
-**操作要点**：
-1. 主密钥创建时间必须早于子密钥。
-2. 为保留碰撞出的靓号指纹，合并时必须保留该子密钥原有的创建时间戳：
+**核心要点**：
+1. **时间戳先后顺序**：主密钥的创建时间必须**早于**子密钥的创建时间。
+2. **锁定创建时间戳**：OpenPGP 指纹计算强依赖创建时间。合并绑定时**必须**锁定该子密钥生成时的精确时间戳，否则生成的子密钥指纹会改变（失去靓号特征）！
+
+**具体操作步骤**：
 
 ```bash
-gpg -k --with-colons
-gpg --with-keygrip -k
-gpg --expert --faked-system-time="[子密钥时间戳]\!" --ignore-time-conflict --edit-key [主密钥 ID]
-addkey
-13 (existing key)
+# 1. 提取所碰撞靓号子密钥的精确创建时间戳
+SUB_TIME=$(gpg --with-colons --show-keys ./output/<子密钥文件名>.gpg | awk -F: '$1=="sec"{print $6}')
+
+# 2. 查询子密钥文件对应的 Keygrip
+gpg --with-keygrip --show-keys ./output/<子密钥文件名>.gpg
+
+# 3. 锁定时间戳并进入主密钥编辑菜单
+gpg --expert --faked-system-time="${SUB_TIME}!" --ignore-time-conflict --edit-key <主密钥 ID>
+
+gpg> addkey
+# 选择: (13) Existing key（使用已有密钥）
+# 粘贴该子密钥的 Keygrip
+# 设置密钥能力（例如按需切换启用 [E]ncrypt 加密）
+# 确认后输入 save 保存退出！
 ```
