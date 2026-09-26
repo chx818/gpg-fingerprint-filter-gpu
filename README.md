@@ -1,4 +1,4 @@
-# gpg-fingerprint-filter-gpu (Brainpool Edition)
+# gpg-fingerprint-filter-gpu (Brainpool & Windows Edition)
 
 [English](#english) | [简体中文](#简体中文)
 
@@ -7,22 +7,56 @@
 <a name="english"></a>
 ## English
 
-A CUDA-accelerated GPU tool to generate OpenPGP keys with customized fingerprint patterns (vanity / lucky fingerprints) at incredible speed.
+A high-performance CUDA-accelerated GPU tool to generate OpenPGP keys with customized fingerprint patterns (vanity / lucky fingerprints) at billions of hashes per second.
 
-> **Fork Note**: This fork is based on [cuihaoleo/gpg-fingerprint-filter-gpu](https://github.com/cuihaoleo/gpg-fingerprint-filter-gpu), adding full support for **Brainpool curves** (RFC 5639) and an automated **batch mining script** for long-running vanity key hunting.
+> **Fork Note**: This fork is based on [cuihaoleo/gpg-fingerprint-filter-gpu](https://github.com/cuihaoleo/gpg-fingerprint-filter-gpu), adding full support for **Brainpool curves** (RFC 5639), native **Windows** support via the CUDA Driver API & NVRTC, pre-built portable releases, and automated **batch mining scripts** (`.sh` / `.bat` / `.ps1`) for 24/7 vanity key hunting.
 
 ### ✨ What's New in this Fork
 
 - **Brainpool Curve Support**:
-  - **ECDSA (Signing)**: `brainpool256` (`brainpoolp256r1`), `brainpool384` (`brainpoolp384r1`), `brainpool512` (`brainpoolp512r1` / alias `p512`).
-  - **ECDH (Encryption)**: `brainpool256ecdh`, `brainpool384ecdh`, `brainpool512ecdh` (alias `p512ecdh`) with appropriate KDF parameters.
+  - **ECDSA (Signing / Primary Key)**: `brainpool256` (`brainpoolp256r1`), `brainpool384` (`brainpoolp384r1`), `brainpool512` (`brainpoolp512r1` / alias `p512`).
+  - **ECDH (Encryption Subkey)**: `brainpool256ecdh`, `brainpool384ecdh`, `brainpool512ecdh` (alias `p512ecdh`) with appropriate KDF parameters.
   - Also added `nistp256ecdh`, `nistp384ecdh`, `nistp521ecdh` and `x25519` alias.
+- **Native Windows Support & Modernized CUDA Driver Architecture**:
+  - Runs natively on Windows 10/11 (`gpg-fingerprint-filter-gpu.exe`) without requiring WSL, Linux containers, or MSVC.
+  - Re-architected the SHA-1 GPU kernel to compile dynamically at runtime via **NVRTC** + **CUDA Driver API**, eliminating static `nvcc` build dependencies and linking against standard `nvcuda.dll`.
+  - Fully compatible with standard MinGW-w64 GCC.
 - **Algorithm Name Normalization**: Case-insensitive and ignores `-` and `_` (e.g. `brainpool-p512`, `Brainpool_P512`, `p512` are all accepted).
-- **Automated Batch Miner Script (`batch_miner.sh`)**:
-  - Continuous, unattended vanity key mining in the background.
-  - Real-time GPU hash rate monitoring (`hashes/sec`).
-  - Automatically extracts key fingerprints, renames files, and archives them cleanly without stopping.
+- **Automated Batch Mining Scripts (`batch_miner.sh` / `batch_miner.bat` / `batch_miner.ps1`)**:
+  - Continuous, unattended vanity key mining in the background for both Linux and Windows.
+  - Real-time unbuffered GPU hash rate monitoring (`hashes/sec`).
+  - Automatically extracts key fingerprints via GPG, renames files, and archives keys cleanly without stopping.
   - Logs match statistics (timestamps, elapsed time, fingerprints) with graceful `Ctrl+C` shutdown summary.
+- **Pre-Built Portable Packages (`dist/`)**:
+  - Standalone releases for Linux (static ELF binary) and Windows (complete portable directory with all required DLLs bundled).
+
+---
+
+### 📦 Pre-Built Releases & Quick Start
+
+If you do not wish to compile from source, you can use the pre-built portable packages in the `dist/` directory:
+
+#### Windows
+- Located in `dist/windows/`:
+  - `gpg-fingerprint-filter-gpu.exe`: 64-bit native Windows executable.
+  - Bundled DLLs: `libgcrypt-20.dll`, `libgpg-error-0.dll`, `nvrtc64_130_0.dll`, `nvrtc-builtins64_130.dll`.
+  - `batch_miner.bat` / `batch_miner.ps1`: Automated miner scripts.
+- **Usage**:
+  1. Simply double-click `batch_miner.bat` to start mining right away!
+  2. Or run from PowerShell / CMD:
+     ```powershell
+     .\gpg-fingerprint-filter-gpu.exe -a p512 "x{8}" .\output
+     ```
+
+#### Linux
+- Located in `dist/linux/`:
+  - `gpg-fingerprint-filter-gpu`: 64-bit statically-linked Linux binary (no system `libgcrypt` installation needed, only NVIDIA driver).
+  - `batch_miner.sh`: Automated bash miner script.
+- **Usage**:
+  ```bash
+  chmod +x gpg-fingerprint-filter-gpu batch_miner.sh
+  ./batch_miner.sh
+  ```
 
 ---
 
@@ -49,6 +83,7 @@ $ ./gpg-fingerprint-filter-gpu --help
 
 #### Examples
 
+**Linux**:
 ```bash
 # Mine a Brainpool P-512 primary key with 8 identical characters suffix
 ./gpg-fingerprint-filter-gpu -a p512 "x{8}" ./output
@@ -63,12 +98,22 @@ $ ./gpg-fingerprint-filter-gpu --help
 ./gpg-fingerprint-filter-gpu -a brainpool256 "(xy){4}" ./output
 ```
 
+**Windows (PowerShell / CMD)**:
+```powershell
+# Mine a Brainpool P-512 primary key
+.\gpg-fingerprint-filter-gpu.exe -a p512 "x{8}" .\output
+
+# Mine a Brainpool P-512 ECDH subkey
+.\gpg-fingerprint-filter-gpu.exe -a p512ecdh "88888888" .\output
+```
+
 ---
 
-### 🤖 Automated Batch Miner (`batch_miner.sh`)
+### 🤖 Automated Batch Miner
 
-For continuous vanity key hunting, a ready-to-use bash script [`batch_miner.sh`](batch_miner.sh) is provided.
+For continuous vanity key hunting, automated scripts are provided for both platforms.
 
+#### Linux (`batch_miner.sh`)
 1. **Configure parameters** in `batch_miner.sh`:
    ```bash
    ALGO="p512"               # Key algorithm (e.g., p512, ed25519, brainpool256)
@@ -77,15 +122,52 @@ For continuous vanity key hunting, a ready-to-use bash script [`batch_miner.sh`]
    OUTPUT_DIR="./batch_keys" # Destination folder for matched keys
    LOG_FILE="./batch_miner.log"
    ```
-2. **Make executable and run**:
+2. **Run**:
    ```bash
    chmod +x batch_miner.sh
    ./batch_miner.sh
    ```
+
+#### Windows (`batch_miner.bat` / `batch_miner.ps1`)
+1. **Configure parameters** at the top of `batch_miner.ps1` (or use defaults: `p512` + `x{12}`).
+2. **Run**:
+   - Double-click `batch_miner.bat`, or
+   - Run in PowerShell: `.\batch_miner.ps1`
 3. **Features**:
    - Displays real-time GPU hash rate dynamically: `>> 当前 GPU 哈希速度: 1690546512.02 hashes/sec`
-   - On each hit, parses the GPG fingerprint, moves the key to `batch_keys/<ALGO>_<FPR>.gpg`, and writes to `batch_miner.log`.
-   - Press `Ctrl+C` at any time to safely exit; the script prints total uptime and keys found.
+   - Automatically invokes GPG to inspect the hit, renames the output to `<ALGO>_<FINGERPRINT>.gpg`, and writes to `batch_miner.log`.
+   - Press `Ctrl+C` at any time to safely exit with a summary of elapsed time and keys found.
+
+---
+
+### 🛠️ Building from Source
+
+#### Linux
+**Prerequisites**: GCC (`g++`), `make`, NVIDIA Driver, CUDA Toolkit headers, `libgcrypt-dev`, `libgpg-error-dev`.
+
+```bash
+# Ubuntu / Debian
+sudo apt-get install build-essential libgcrypt20-dev libgpg-error-dev
+
+# Dynamic build (links against system libgcrypt)
+make -j$(nproc)
+
+# Or static build (produces a standalone binary independent of system libgcrypt)
+make static -j$(nproc)
+```
+
+#### Windows
+**Prerequisites**:
+1. **MinGW-w64 GCC**: Recommended [WinLibs](https://winlibs.com/) (e.g. via `winget install BrechtSanders.WinLibs.POSIX.UCRT`).
+2. **NVIDIA CUDA Toolkit**: v11 / v12 / v13+ (standard installation in `C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v*`).
+3. **GnuPG for Windows**: Standard installation in `C:\Program Files\GnuPG` (provides `libgcrypt-20.dll`).
+
+**Build**:
+Simply run the included build script in CMD or PowerShell:
+```cmd
+build_windows.bat
+```
+The script will automatically detect your MinGW compiler, CUDA SDK path, and GnuPG installation, then compile `gpg-fingerprint-filter-gpu.exe`.
 
 ---
 
@@ -164,22 +246,56 @@ gpg> addkey
 <a name="简体中文"></a>
 ## 简体中文
 
-基于 CUDA 加速的 GPU OpenPGP 靓号密钥生成工具，利用显卡算力极速碰撞特定模式指纹（Vanity Fingerprint）。
+基于 CUDA 加速的高性能 GPU OpenPGP 靓号密钥生成工具，利用显卡算力以数十亿次/秒的速度极速碰撞特定模式指纹（Vanity Fingerprint）。
 
-> **Fork 说明**：本项目基于 [cuihaoleo/gpg-fingerprint-filter-gpu](https://github.com/cuihaoleo/gpg-fingerprint-filter-gpu) 改造，完整加入了 **Brainpool 系列椭圆曲线**（RFC 5639）支持，并提供了无人值守的 **自动批量挂机寻号脚本**。
+> **Fork 说明**：本项目基于 [cuihaoleo/gpg-fingerprint-filter-gpu](https://github.com/cuihaoleo/gpg-fingerprint-filter-gpu) 改造，完整加入了 **Brainpool 系列椭圆曲线**（RFC 5639）支持、基于 CUDA Driver API 与 NVRTC 的 **原生 Windows 支持**、开箱即用便携发布包，并提供了跨平台无人值守的 **自动批量挂机寻号脚本**（`.sh` / `.bat` / `.ps1`）。
 
 ### ✨ 本 Fork 新特性
 
 - **完整支持 Brainpool 曲线**：
-  - **ECDSA 签名模式**：`brainpool256` (`brainpoolp256r1`)、`brainpool384` (`brainpoolp384r1`)、`brainpool512` (`brainpoolp512r1`，可简写为 `p512`)。
-  - **ECDH 加密模式**：`brainpool256ecdh`、`brainpool384ecdh`、`brainpool512ecdh`（简写 `p512ecdh`），包含标准的 KDF 算法协商参数。
+  - **ECDSA 签名主密钥**：`brainpool256` (`brainpoolp256r1`)、`brainpool384` (`brainpoolp384r1`)、`brainpool512` (`brainpoolp512r1`，可简写为 `p512`)。
+  - **ECDH 加密子密钥**：`brainpool256ecdh`、`brainpool384ecdh`、`brainpool512ecdh`（简写 `p512ecdh`），包含完整的 KDF 算法协商参数。
   - 同时完善了 `nistp256ecdh`、`nistp384ecdh`、`nistp521ecdh` 及 `x25519` 别名支持。
+- **原生 Windows 支持与现代 CUDA Driver 架构**：
+  - 完美在 Windows 10/11 原生运行（`gpg-fingerprint-filter-gpu.exe`），无需 WSL、虚拟机或 MSVC 庞大环境。
+  - 底层重构为 **NVRTC** 运行时即时编译 + **CUDA Driver API**，摆脱了原版对 `nvcc` 静态编译与 `libcudart` 的强依赖，直接调用系统 NVIDIA 驱动 `nvcuda.dll`。
+  - Windows 环境下支持使用标准的 MinGW-w64 GCC 编译。
 - **算法传参自动归一化**：大小写不敏感，且自动忽略连字符 `-` 和下划线 `_`（例如 `brainpool-p512`、`Brainpool_P512`、`p512` 均可识别）。
-- **自动化挂机碰撞脚本 (`batch_miner.sh`)**：
-  - 适合无人值守长时间后台挖号。
-  - 实时捕获并输出当前 GPU 哈希算力速度（`hashes/sec`）。
+- **自动化挂机碰撞脚本 (`batch_miner.sh` / `batch_miner.bat` / `batch_miner.ps1`)**：
+  - 支持 Linux 和 Windows 平台长时间无人值守后台挖号。
+  - 实时无缓冲刷新当前 GPU 哈希算力速度（`hashes/sec`）。
   - 命中靓号后自动通过 `gpg` 提取公钥指纹、格式化重命名并归档存储，无需手动干预。
   - 自动记录运行日志（时间戳、耗时、完整指纹）；按 `Ctrl+C` 退出时自动输出挂机总时长与战果统计。
+- **开箱即用便携包 (`dist/`)**：
+  - 提供预编译的 Linux 静态可执行程序和 Windows 绿色便携包（内置所需全部 DLL 动态库）。
+
+---
+
+### 📦 开箱即用便携发布包
+
+如果你不想自行配置编译环境，可以直接使用本项目预编译好的 `dist/` 便携包：
+
+#### Windows 用户
+- 位于 `dist/windows/` 目录：
+  - `gpg-fingerprint-filter-gpu.exe`：64 位 Windows 原生可执行文件。
+  - 附带必要动态链接库：`libgcrypt-20.dll`、`libgpg-error-0.dll`、`nvrtc64_130_0.dll`、`nvrtc-builtins64_130.dll`。
+  - `batch_miner.bat` / `batch_miner.ps1`：一键自动挂机挖号脚本。
+- **使用方式**：
+  1. 直接双击 `batch_miner.bat` 即可启动全自动挂机！
+  2. 也可以在 PowerShell 或 CMD 中直接调用：
+     ```powershell
+     .\gpg-fingerprint-filter-gpu.exe -a p512 "x{8}" .\output
+     ```
+
+#### Linux 用户
+- 位于 `dist/linux/` 目录：
+  - `gpg-fingerprint-filter-gpu`：64 位 Linux 静态链接二进制文件（无需额外安装 libgcrypt，仅需显卡驱动）。
+  - `batch_miner.sh`：自动化挂机脚本。
+- **使用方式**：
+  ```bash
+  chmod +x gpg-fingerprint-filter-gpu batch_miner.sh
+  ./batch_miner.sh
+  ```
 
 ---
 
@@ -206,6 +322,7 @@ $ ./gpg-fingerprint-filter-gpu --help
 
 #### 使用示例
 
+**Linux**:
 ```bash
 # 生成尾部 8 连相同字符的 Brainpool P-512 主密钥
 ./gpg-fingerprint-filter-gpu -a p512 "x{8}" ./output
@@ -220,12 +337,22 @@ $ ./gpg-fingerprint-filter-gpu --help
 ./gpg-fingerprint-filter-gpu -a brainpool256 "(xy){4}" ./output
 ```
 
+**Windows (PowerShell / CMD)**:
+```powershell
+# 生成尾部 8 连相同字符的 Brainpool P-512 主密钥
+.\gpg-fingerprint-filter-gpu.exe -a p512 "x{8}" .\output
+
+# 碰撞 Brainpool P-512 ECDH 加密子密钥
+.\gpg-fingerprint-filter-gpu.exe -a p512ecdh "88888888" .\output
+```
+
 ---
 
-### 🤖 批量挂机碰撞脚本 (`batch_miner.sh`)
+### 🤖 自动化批量挂机碰撞脚本
 
-如果需要长时间挂机碰撞高难度靓号（如 10 连、12 连字符），可以直接使用本项目附带的 [`batch_miner.sh`](batch_miner.sh) 脚本：
+如果需要长时间挂机碰撞高难度靓号（如 10 连、12 连字符），可以直接使用附带的自动化脚本：
 
+#### Linux 用户 (`batch_miner.sh`)
 1. **修改配置**（直接编辑 `batch_miner.sh` 开头的配置项）：
    ```bash
    ALGO="p512"               # 目标算法（例如 p512、ed25519、brainpool256 等）
@@ -234,15 +361,52 @@ $ ./gpg-fingerprint-filter-gpu --help
    OUTPUT_DIR="./batch_keys" # 命中密钥保存目录
    LOG_FILE="./batch_miner.log" # 碰撞日志文件
    ```
-2. **赋予执行权限并运行**：
+2. **运行**：
    ```bash
    chmod +x batch_miner.sh
    ./batch_miner.sh
    ```
-3. **运行效果**：
-   - 终端单行动态刷新显示当前 GPU 算力：`>> 当前 GPU 哈希速度: 1690546512.02 hashes/sec`
-   - 每次命中后，自动解析完整指纹，将密钥保存为 `batch_keys/<算法>_<指纹>.gpg`，并在日志中写入记录。
+
+#### Windows 用户 (`batch_miner.bat` / `batch_miner.ps1`)
+1. **修改配置**：编辑 `batch_miner.ps1` 顶部的参数配置（默认已配置为 `p512` 碰撞 `x{12}`）。
+2. **启动**：
+   - 直接双击运行 `batch_miner.bat`，或
+   - 在 PowerShell 终端中执行 `.\batch_miner.ps1`。
+3. **功能特性**：
+   - 终端动态单行刷新当前 GPU 算力：`>> 当前 GPU 哈希速度: 1690546512.02 hashes/sec`。
+   - 每次命中后，自动调用系统 GnuPG 解析完整指纹，将密钥保存为 `batch_keys/<算法>_<指纹>.gpg` 并追加到日志中。
    - 任意时刻按 `Ctrl+C` 退出，终端将显示挂机时长与累计收获的靓号总数。
+
+---
+
+### 🛠️ 源码编译指南
+
+#### Linux 编译
+**环境要求**：GCC (`g++`)、`make`、NVIDIA 显卡驱动、CUDA Toolkit 头文件、`libgcrypt-dev`、`libgpg-error-dev`。
+
+```bash
+# Ubuntu / Debian 安装依赖
+sudo apt-get install build-essential libgcrypt20-dev libgpg-error-dev
+
+# 动态链接编译（依赖系统 libgcrypt）
+make -j$(nproc)
+
+# 或静态编译（生成无需系统依赖的独立可执行文件）
+make static -j$(nproc)
+```
+
+#### Windows 编译
+**环境要求**：
+1. **MinGW-w64 GCC**：推荐使用 [WinLibs](https://winlibs.com/)（例如通过 `winget install BrechtSanders.WinLibs.POSIX.UCRT` 安装）。
+2. **NVIDIA CUDA Toolkit**：安装官方 CUDA Toolkit v11 / v12 / v13+（默认安装在 `C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v*`）。
+3. **GnuPG for Windows**：安装官方 GnuPG（默认安装在 `C:\Program Files\GnuPG`，提供 `libgcrypt-20.dll` 等）。
+
+**编译步骤**：
+在项目根目录下直接运行一键批处理脚本：
+```cmd
+build_windows.bat
+```
+脚本会自动探测 MinGW GCC 路径、CUDA SDK 路径与 GnuPG 库路径，一键完成编译生成 `gpg-fingerprint-filter-gpu.exe`。
 
 ---
 
