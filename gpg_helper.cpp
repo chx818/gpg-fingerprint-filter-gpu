@@ -263,7 +263,7 @@ GPGWorker::GPGWorker(size_t n_thread, const std::string &algo):
         algorithm(algo),
         key_stack(n_thread * 2) {
     // initialize gcrypt
-    NULLABLE_CALL(gcry_check_version, GCRYPT_VERSION);
+    NULLABLE_CALL(gcry_check_version, NULL);
     GCRY_CALL(gcry_control, GCRYCTL_DISABLE_SECMEM, 0);
     GCRY_CALL(gcry_control, GCRYCTL_INITIALIZATION_FINISHED, 0);
 

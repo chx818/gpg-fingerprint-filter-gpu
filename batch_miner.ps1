@@ -12,6 +12,12 @@ Set-Location $SCRIPT_DIR
 $EXE = Join-Path $SCRIPT_DIR "gpg-fingerprint-filter-gpu.exe"
 $SCRATCH_DIR = Join-Path $SCRIPT_DIR "_miner_scratch"
 
+# 自动清理可能残留的后台孤儿挖掘进程
+Get-Process -Name "gpg-fingerprint-filter-gpu" -ErrorAction SilentlyContinue | ForEach-Object {
+    Write-Host ">> 发现残留的后台挖掘进程 (PID: $($_.Id))，正在清理以释放算力..." -ForegroundColor Yellow
+    try { Stop-Process -Id $_.Id -Force } catch {}
+}
+
 # 自动寻找系统 GnuPG 中的 gpg.exe
 $GPG_EXE = "gpg"
 if (-not (Get-Command "gpg" -ErrorAction SilentlyContinue)) {
@@ -27,6 +33,7 @@ if (-not (Test-Path $SCRATCH_DIR)) { New-Item -ItemType Directory -Path $SCRATCH
 
 $TOTAL_HITS = 0
 $START_TIME = [System.DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+$global:currentProc = $null
 
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host ">> 自动化 PGP 靓号挂机挖掘启动 (Windows 版)" -ForegroundColor Green
@@ -42,6 +49,7 @@ try {
 
         $pinfo = New-Object System.Diagnostics.ProcessStartInfo
         $pinfo.FileName = $EXE
+        $pinfo.WorkingDirectory = $SCRIPT_DIR
         $pinfo.Arguments = "-a `"$ALGO`" -t $TIME_WINDOW `"$PATTERN`" `"$SCRATCH_DIR`""
         $pinfo.RedirectStandardOutput = $true
         $pinfo.RedirectStandardError = $true
@@ -51,6 +59,7 @@ try {
         $proc = New-Object System.Diagnostics.Process
         $proc.StartInfo = $pinfo
         $proc.Start() | Out-Null
+        $global:currentProc = $proc
 
         $sr = $proc.StandardOutput
         $charBuf = New-Object System.Text.StringBuilder
@@ -72,6 +81,7 @@ try {
             }
         }
         $proc.WaitForExit()
+        $global:currentProc = $null
         Write-Host ""
 
         $found = Get-ChildItem -Path $SCRATCH_DIR -Filter "*.gpg" -File | Select-Object -First 1
@@ -112,6 +122,14 @@ try {
         }
     }
 } finally {
+    # 确保退出时强行杀死子进程，杜绝后台残留
+    if ($global:currentProc -and -not $global:currentProc.HasExited) {
+        try {
+            $global:currentProc.Kill()
+            $global:currentProc.WaitForExit(1000)
+        } catch {}
+    }
+
     Write-Host ""
     Write-Host "==================================================" -ForegroundColor Yellow
     Write-Host ">> 收到终止信号，挂机任务结束。"
