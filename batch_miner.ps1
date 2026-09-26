@@ -1,4 +1,4 @@
-# ==================== 用户配置区 ====================
+﻿# ==================== 用户配置区 ====================
 $ALGO = "p512"
 $PATTERN = "x{12}"
 $TIME_WINDOW = 31536000
@@ -11,6 +11,16 @@ Set-Location $SCRIPT_DIR
 
 $EXE = Join-Path $SCRIPT_DIR "gpg-fingerprint-filter-gpu.exe"
 $SCRATCH_DIR = Join-Path $SCRIPT_DIR "_miner_scratch"
+
+# 自动寻找系统 GnuPG 中的 gpg.exe
+$GPG_EXE = "gpg"
+if (-not (Get-Command "gpg" -ErrorAction SilentlyContinue)) {
+    if (Test-Path "C:\Program Files\GnuPG\bin\gpg.exe") {
+        $GPG_EXE = "C:\Program Files\GnuPG\bin\gpg.exe"
+    } elseif (Test-Path "C:\Program Files (x86)\GnuPG\bin\gpg.exe") {
+        $GPG_EXE = "C:\Program Files (x86)\GnuPG\bin\gpg.exe"
+    }
+}
 
 if (-not (Test-Path $OUTPUT_DIR)) { New-Item -ItemType Directory -Path $OUTPUT_DIR -Force | Out-Null }
 if (-not (Test-Path $SCRATCH_DIR)) { New-Item -ItemType Directory -Path $SCRATCH_DIR -Force | Out-Null }
@@ -55,7 +65,7 @@ try {
                 $charBuf.Clear() | Out-Null
                 if ($line -match "Speed:\s+([0-9\.]+)\s+hashes") {
                     $speed = $Matches[1]
-                    Write-Host -NoNewline "`r`e[K>> 当前 GPU 哈希速度: $speed hashes/sec"
+                    Write-Host -NoNewline ("`r>> 当前 GPU 哈希速度: {0} hashes/sec        " -f $speed)
                 }
             } else {
                 $charBuf.Append($ch) | Out-Null
@@ -72,12 +82,16 @@ try {
             $ELAPSED = $RUN_END - $RUN_START
 
             $fpr = ""
-            $listPackets = & gpg --list-packets $found.FullName 2>$null
-            foreach ($l in $listPackets) {
-                if ($l -match "keyid:\s+([0-9A-Fa-f]+)") {
-                    $fpr = $Matches[1]
-                    break
+            try {
+                $listPackets = & $GPG_EXE --list-packets $found.FullName 2>$null
+                foreach ($l in $listPackets) {
+                    if ($l -match "keyid:\s+([0-9A-Fa-f]+)") {
+                        $fpr = $Matches[1]
+                        break
+                    }
                 }
+            } catch {
+                $fpr = ""
             }
 
             if (-not $fpr) {

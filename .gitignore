@@ -11,3 +11,4 @@ gpg-fingerprint-filter-gpu
 dist/
 _miner_scratch/
 _win_test_output/
+scratch/
