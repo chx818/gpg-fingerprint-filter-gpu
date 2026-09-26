@@ -139,6 +139,21 @@ For continuous vanity key hunting, automated scripts are provided for both platf
    - Automatically invokes GPG to inspect the hit, renames the output to `<ALGO>_<FINGERPRINT>.gpg`, and writes to `batch_miner.log`.
    - Press `Ctrl+C` at any time to safely exit with a summary of elapsed time and keys found.
 
+#### ⚡ Performance Tips: WSL vs Native Windows
+
+> [!TIP]
+> **Recommendation**: If you have **WSL 2** installed on Windows, running the Linux version in WSL (`./batch_miner.sh`) is **strongly recommended** for high-degree curves like `p512`.
+
+**Why the difference?**
+- **CPU Key Generation Bottleneck**: The mining pipeline alternates between **CPU generating a key** and **GPU testing millions of candidate timestamps** for that key.
+- **Libgcrypt Assembly Optimization**: Linux's `libgcrypt` includes handwritten x86_64 AVX2 / ADX assembly (`mpih-mul.S`), generating 512-bit Brainpool keys in ~16 ms per key. Windows's portable Libgcrypt DLL lacks AVX2 assembly, requiring ~60–90 ms per key (~4–5× slower).
+- **Impact on 1-Year Time Window (`-t 31536000`)**:
+  - In **WSL / Linux**, the CPU generates ~50 keys/sec, easily saturating the GPU at **1.5G – 1.7G+ hashes/sec**.
+  - In **Native Windows**, the CPU only generates ~12–15 keys/sec, leaving the GPU idle between keys and limiting throughput to ~1.0G hashes/sec.
+- **How to Maximize Speed on Windows**:
+  - Simply increase the search time window: set `$TIME_WINDOW = 94608000` (3 years) or `157680000` (5 years) in `batch_miner.ps1`.
+  - This increases the GPU work per key, eliminating CPU wait times and boosting native Windows throughput to **2.5G – 3.2G+ hashes/sec**!
+
 ---
 
 ### 🛠️ Building from Source
@@ -378,6 +393,23 @@ $ ./gpg-fingerprint-filter-gpu --help
    - 终端动态单行刷新当前 GPU 算力：`>> 当前 GPU 哈希速度: 1690546512.02 hashes/sec`。
    - 每次命中后，自动调用系统 GnuPG 解析完整指纹，将密钥保存为 `batch_keys/<算法>_<指纹>.gpg` 并追加到日志中。
    - 任意时刻按 `Ctrl+C` 退出，终端将显示挂机时长与累计收获的靓号总数。
+
+#### ⚡ 性能调优说明：WSL vs Windows 原生（强烈推荐 WSL）
+
+> [!TIP]
+> **使用建议**：如果你的 Windows 电脑安装了 **WSL 2**，碰撞 `p512`（Brainpool-512）等高阶大曲线时，**强烈推荐直接在 WSL 2 中运行 Linux 版脚本（`./batch_miner.sh`）**，能发挥最高算力！
+
+**底层性能差异原因分析**：
+- **CPU-GPU 流水线瓶颈**：程序的工作模式是“CPU 多线程生成新密钥 $\to$ GPU 极速穷举该密钥对应的数千万个时间戳”。
+- **Libgcrypt 汇编优化差异**：
+  - **Linux / WSL**：系统自带的 `libgcrypt` 拥有针对现代 x86_64 CPU 的手写 **AVX2 / ADX / BMI2 汇编大数加速**（`mpih-mul.S`），单次 512 位密钥生成仅需约 **16 毫秒**；
+  - **Windows 原生**：由于官方 DLL 为了向后兼容旧系统，未启用 AVX2 高级汇编，单次 512 位密钥生成需要 **60~90 毫秒（慢了 4~5 倍）**。
+- **对 1 年时间窗口（`$TIME_WINDOW = 31536000`）的影响**：
+  - **在 WSL / Linux 下**：CPU 供弹极快（每秒产出约 50 个密钥），GPU 几乎不需要等待，能够轻松跑满并稳定维持在 **1.5G ~ 1.7G+ hashes/sec**；
+  - **在 Windows 原生下**：由于 CPU 产出密钥较慢，显卡算完后经常需要停下来等 CPU 投递下一个密钥，导致 1 年窗口下综合速度会降到 **1.0G 左右**，显卡利用率显示较低。
+- **如何在 Windows 原生下跑满满血算力？**
+  - 如果不想开 WSL、就想在 Windows 原生下挂机，**只需将时间窗口调大**：在 `batch_miner.ps1` 中将 `$TIME_WINDOW` 设置为 **3 年**（`94608000`）或 **5 年**（`157680000`）；
+  - 这样 GPU 每次需要计算 1 亿 ~ 1.5 亿个时间戳，单次运算时间延长，Windows CPU 有极其充裕的时间填满队列，**Windows 原生速度会直接暴涨到 2.5G ~ 3.2G+ hashes/sec 满血状态**！
 
 ---
 
