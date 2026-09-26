@@ -41,6 +41,13 @@ echo ">> 结果存储: ${OUTPUT_DIR}/"
 echo ">> 退出请按 Ctrl+C"
 echo "=================================================="
 
+# 预检可执行文件并自动赋予执行权限
+if [[ ! -f "./gpg-fingerprint-filter-gpu" ]]; then
+    echo ">> [错误] 未在当前目录找到 gpg-fingerprint-filter-gpu 可执行文件！" >&2
+    exit 1
+fi
+chmod +x ./gpg-fingerprint-filter-gpu 2>/dev/null || true
+
 while true; do
     rm -rf "${SCRATCH_DIR:?}"/*
     RUN_START=$(date +%s)
